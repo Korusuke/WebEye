@@ -1,0 +1,27 @@
+trigger:
+- master
+
+pool:
+  vmImage: 'ubuntu-16.04'
+strategy:
+  matrix:
+    node_8_x:
+      node_version: 8.x
+    node_9_x:
+      node_version: 9.x
+    node_10_x:
+      node_version: 10.x
+
+steps:
+- task: NodeTool@0 
+  inputs:
+    versionSpec: $(node_version)
+
+- script: npm install
+  displayName: 'Backend Node'
+
+- script: npm install --prefix client
+  displayName: 'React Node'
+
+- script: npm run lint
+  displayName: 'linting'
