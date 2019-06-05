@@ -2,16 +2,15 @@ const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const secrets = require('../../secrets');
+const secrets = require('../../config/secrets');
 const mongoose = require('mongoose');
-
+const keys = require('../../config/keys');
 //db connection
 var user='synerman';
 var password=process.env.password || secrets.password;
 var mongourl=`mongodb://${user}:${password}@ds261626.mlab.com:61626/webeye-aditya`;
 console.log(mongourl);
 mongoose.connect(mongourl, {useNewUrlParser: true});
-var db=mongoose.connection;
 
 // Load input validation
 const validateLoginInput = require('./login_validation');

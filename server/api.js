@@ -1,9 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const mongoose = require('mongoose');
-const bodyParser = require('body-parser');
 const uuidv4 = require('uuid/v4');
-const secrets = require('../secrets');
+const secrets = require('../config/secrets');
 const mapping=require('../models/mapping');
 const stats = require('../models/stats');
 const SHA256 = require('crypto-js/sha256');
@@ -14,7 +13,6 @@ var password=process.env.password || secrets.password;
 const mongourl=`mongodb://${user}:${password}@ds261626.mlab.com:61626/webeye-aditya`;
 // console.log(mongourl);
 mongoose.connect(mongourl, {useNewUrlParser: true});
-var db=mongoose.connection; 
 
 router.post('/createnew', function(req, res){
   mapping.findOne({'ogurl':req.body.ogurl}) 

@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const secrets = require('../secrets');
+const secrets = require('../config/secrets');
 const mapping=require('../models/mapping');
 
 // db connection 
@@ -11,7 +11,6 @@ var password=process.env.password || secrets.password;
 const mongourl=`mongodb://${user}:${password}@ds261626.mlab.com:61626/webeye-aditya`;
 // console.log(mongourl);
 mongoose.connect(mongourl, {useNewUrlParser: true});
-var db=mongoose.connection;
 
 
 router.all('/*+', function(req, res) {
