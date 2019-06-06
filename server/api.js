@@ -40,7 +40,6 @@ router.post('/createnew', function(req, res){
           .catch(function(err){
             console.log(err);
           });
-        console.log('WTF');
         // Save to 'stats' collection
         var stat = new stats({ 
           _id : new mongoose.Types.ObjectId(),
