@@ -14,6 +14,4 @@ app.use(express.json());
 app.use(express.urlencoded({extended:false}));
     
 // Routes
-app.use('/urls',require('./server/redirect'));
-app.use('/api', require('./server/api'));
-app.use('/users', require('./server/signin/users'));
+app.use('/',require('./server/'));
