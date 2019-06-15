@@ -17,23 +17,23 @@ router.get('/*+', function(req, res) {
   var temp=req.originalUrl;
   const url=`http://localhost:7000${temp}`;
   console.log(url);
-  console.log()
+  console.log();
   mapping.find({'murl':url}).exec(function(err,result){
     if(!err){
       try{
         const red=result[0].ogurl;
         res.status(307).redirect(red);
-        var ip = req.connection.remoteAddress;
+        // var ip = req.connection.remoteAddress;
         mapping
-        .findOneAndUpdate({"murl":url},{$inc:{visits:1}})
-        .exec(function(err,result){
-          if(!err){
-            console.log(result);  
-          }
-          else{
-            res.json({"msg":"Could not find minified url."});
-          }
-        });
+          .findOneAndUpdate({'murl':url},{$inc:{visits:1}})
+          .exec(function(err,result){
+            if(!err){
+              console.log(result);  
+            }
+            else{
+              res.json({'msg':'Could not find minified url.'});
+            }
+          });
       }
       catch(e){
         res.json({

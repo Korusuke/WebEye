@@ -22,7 +22,7 @@ router.post('/createnew', function(req, res){
       // Create token and minified url
         var token = uuidv4();
         var temp = String(SHA256(token));
-        temp=temp.slice(0,5);
+        temp=temp.slice(0,7);
         //   var minurl = `https://web-aye.herokuapp.com/${temp}`;
         var minurl = `http://localhost:7000/urls/${temp}`;
         // Save to 'mapping' colllection
@@ -71,7 +71,7 @@ router.post('/getStatus', function(req,res){
   res.send(req.body);
 });
 
-router.put('/updateURL', function(req,res){
+router.put('/updateurl', function(req,res){
   // Required parameters in request body : 
   // Proper access token : accessToken
   // Shortened url to be updated : editUrl
@@ -79,34 +79,39 @@ router.put('/updateURL', function(req,res){
   const accessToken = req.body.accessToken;
   var editUrl = req.body.murl;
   var newUrl = req.body.newUrl;
-  console.log(editUrl, newUrl);
-  // mapping.findOneAndUpdate
-  ({'murl':editUrl}).exec(function(err,result){
-  //   var obj = result;
-  //   if(result!==null){
-  //     if(result.token == accessToken){
-  //       // Resource exists and user has permission to delete it.
-  //       console.log("Allowed to delete this resource");
-  //       mapping.remove(obj, function(err, result){
-  //         if(!err){
-  //           res.json({
-  //             'msg': 'Removed resource succcessfully',
-  //           });
-  //         }
-  //       });
-  //       }
-  //     else{
-  //       console.log('Not allowed to edit resource.');
-  //     }
-  //   }
-  //   else{
-  //     res.json({
-  //     'msg': 'Url does not exist in db',
-  //   });
-  //     console.log('Url does not exist in db');
-  //   }
-  //   });
-}); 
+  mapping
+    .findOne({'murl':editUrl})
+    .exec(function(err, result){
+      if(result!=null){
+        if(result.token == accessToken){
+          mapping
+            .findOneAndUpdate({'murl':editUrl}, {ogurl:newUrl} ,function(err){
+              if(!err){
+                res.json({
+                  'msg': 'Successfully updated resource', 
+                });
+              }
+              else{
+                res.json({
+                  'msg':'Error',
+                });
+              }
+            });
+        }
+        else{
+          console.log('Invalid access token');
+          res.json({
+            'msg': 'Invalid access token',
+          });
+        }
+      }
+      else{
+        res.json({
+          'msg': 'Url does not exist in db',
+        });
+      }
+    });
+});
 
 router.delete('/deleteurl', function(req,res){
   const accessToken = req.body.accessToken;
@@ -116,25 +121,25 @@ router.delete('/deleteurl', function(req,res){
     if(result!==null){
       if(result.token == accessToken){
         // Resource exists and user has permission to delete it.
-        mapping.remove(obj, function(err, result){
+        mapping.remove(obj, function(err){
           if(!err){
             res.json({
               'msg': 'Removed resource succcessfully',
             });
           }
         });
-        }
+      }
       else{
         console.log('Not allowed to delete resource.');
       }
     }
     else{
       res.json({
-      'msg': 'Url does not exist in db',
-    });
+        'msg': 'Url does not exist in db',
+      });
       console.log('Url does not exist in db');
     }
-    });
+  });
 });
 
 module.exports=router;
