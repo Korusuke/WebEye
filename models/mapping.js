@@ -8,6 +8,13 @@ var mappingSchema=mongoose.Schema({
   murl:{
     type: String,
   },
+  visits:{
+    type: Number, 
+    default: 0,
+  },
+  ip:{
+    type: [String],
+  },
   token:{
     type: String,
   }
