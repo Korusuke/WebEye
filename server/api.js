@@ -8,7 +8,7 @@ const SHA256 = require('crypto-js/sha256');
 
 
 var user='synerman';
-var password=process.env.password || secrets.password;
+var password=process.env.PASSWORD || secrets.password;
 const mongourl=`mongodb://${user}:${password}@ds261626.mlab.com:61626/webeye-aditya`;
 mongoose.connect(mongourl, {useNewUrlParser: true});
 
@@ -23,8 +23,7 @@ router.post('/createnew', function(req, res){
         var token = uuidv4();
         var temp = String(SHA256(token));
         temp=temp.slice(0,7);
-        //   var minurl = `https://web-aye.herokuapp.com/${temp}`;
-        var minurl = `http://localhost:7000/urls/${temp}`;
+        var minurl = `https://syn3rman.herokuapp.com/urls/${temp}` || `http://localhost:7000/urls/${temp}`;
         // Save to 'mapping' colllection
         var map = new mapping({ 
           _id : new mongoose.Types.ObjectId(),

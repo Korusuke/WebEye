@@ -7,7 +7,7 @@ const mapping=require('../models/mapping');
 const mongoose = require('mongoose');
 
 var user='synerman';
-var password=process.env.password || secrets.password;
+var password=process.env.PASSWORD || secrets.password;
 const mongourl=`mongodb://${user}:${password}@ds261626.mlab.com:61626/webeye-aditya`;
 // console.log(mongourl);
 mongoose.connect(mongourl, {useNewUrlParser: true});
@@ -15,7 +15,7 @@ mongoose.connect(mongourl, {useNewUrlParser: true});
 
 router.get('/*+', function(req, res) {
   var temp=req.originalUrl;
-  const url=`http://localhost:7000${temp}`;
+  const url=`https://syn3rman.herokuapp.com${temp}` || `http://localhost:7000${temp}`;
   console.log(url);
   console.log();
   mapping.find({'murl':url}).exec(function(err,result){

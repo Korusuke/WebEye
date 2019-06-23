@@ -4,10 +4,12 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const secrets = require('../../config/secrets');
 const mongoose = require('mongoose');
-const keys = require('../../config/keys');
+var keys = require('../../config/keys');
+
+keys = process.env.SECRETORKEY || keys.secretOrKey;
 //db connection
 var user='synerman';
-var password=process.env.password || secrets.password;
+var password=process.env.PASSWORD || secrets.password;
 var mongourl=`mongodb://${user}:${password}@ds261626.mlab.com:61626/webeye-aditya`;
 console.log(mongourl);
 mongoose.connect(mongourl, {useNewUrlParser: true});
