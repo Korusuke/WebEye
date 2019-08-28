@@ -1,6 +1,5 @@
 const express = require('express');
 const router = express.Router();
-const secrets = require('../config/secrets');
 
 // db connection 
 const dbs = require('./dbconnection');
@@ -15,26 +14,26 @@ router.get('/*+', async function(req, res) {
   const minifiedUrl = `http://localhost:7000${temp}`;
   console.log(minifiedUrl);
   mapping.findOne({minifiedUrl})
-  .then((result)=>{
-    console.log(result);
-    try{
-      const redirectUrl=result.originalUrl;
+    .then((result)=>{
       console.log(result);
-      console.log(redirectUrl);
-      res.status(307).redirect(redirectUrl);
-      var ip = (req.headers['x-forwarded-for'] || req.connection.remoteAddress || '').split(',')[0].trim();
-      console.log(ip);
-      mapping
-      .findOneAndUpdate({minifiedUrl},{$inc:{visits:1}})
-      .catch(err=>console.log(err));
-    }
-    catch(e){
-      res.json({
-        'msg':'URL does not exist',
-      });
-    }
-  })
-  .catch(err=>console.log(err));
+      try{
+        const redirectUrl=result.originalUrl;
+        console.log(result);
+        console.log(redirectUrl);
+        res.status(307).redirect(redirectUrl);
+        var ip = (req.headers['x-forwarded-for'] || req.connection.remoteAddress || '').split(',')[0].trim();
+        console.log(ip);
+        mapping
+          .findOneAndUpdate({minifiedUrl},{$inc:{visits:1}})
+          .catch(err=>console.log(err));
+      }
+      catch(e){
+        res.json({
+          'msg':'URL does not exist',
+        });
+      }
+    })
+    .catch(err=>console.log(err));
 });
 
 module.exports=router;

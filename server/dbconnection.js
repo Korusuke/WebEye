@@ -5,16 +5,16 @@ console.log(mongourl);
 
 // connecting to db server
 async function get(){
-    let db = await MongoClient.connect(mongourl, {useNewUrlParser: true, useUnifiedTopology: true})
-    return db;
+  let db = await MongoClient.connect(mongourl, {useNewUrlParser: true, useUnifiedTopology: true});
+  return db;
 }
 
 // the client whose connection we want to close
 function terminateConnection(db){
-    db.close();
+  db.close();
 }
 
 module.exports = {
-    get,
-    terminateConnection
+  get,
+  terminateConnection
 };

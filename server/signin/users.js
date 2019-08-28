@@ -15,47 +15,47 @@ router.post('/newUser',async (req,res)=>{
   const name = (typeof req.body.name === 'undefined') ? null : req.body.name;
   const password = (typeof req.body.password === 'undefined') ? null : req.body.password;
   user.findOne({email})
-  .then(async (result)=>{
-    console.log(result);
-    if(result!=null){
-      res.json({
-        success: false,
-        'msg': 'User already exists',
-      });
-    }
-    else{
-      const apiKey = await jwt.sign({email},apiSecret);
-      obj = {
-        name,
-        email,
-        apiKey,
-      };
-      Object.keys(obj).forEach(key => (obj[key] == null) && delete obj[key]);
-      let saltRounds = 10;
-      bcrypt
-      .hash(password, saltRounds)
-      .then((hash) => {
-        obj.password = hash;
-        user.insertOne(obj)
-          .then(() => {
-            res.json({
-              msg: 'New user created',
-              apiKey
-            });
-          })
-          .catch((er) => {
-            console.error(er);
-          });
-      })
-      .catch((error) => {
-        console.log(error);
+    .then(async (result)=>{
+      console.log(result);
+      if(result!=null){
         res.json({
-          msg: 'Unable to create user',
+          success: false,
+          'msg': 'User already exists',
         });
-      })
-    }
-  })
-  .catch(err=>console.log(err))
+      }
+      else{
+        const apiKey = await jwt.sign({email},apiSecret);
+        var obj = {
+          name,
+          email,
+          apiKey,
+        };
+        Object.keys(obj).forEach(key => (obj[key] == null) && delete obj[key]);
+        let saltRounds = 10;
+        bcrypt
+          .hash(password, saltRounds)
+          .then((hash) => {
+            obj.password = hash;
+            user.insertOne(obj)
+              .then(() => {
+                res.json({
+                  msg: 'New user created',
+                  apiKey
+                });
+              })
+              .catch((er) => {
+                console.error(er);
+              });
+          })
+          .catch((error) => {
+            console.log(error);
+            res.json({
+              msg: 'Unable to create user',
+            });
+          });
+      }
+    })
+    .catch(err=>console.log(err));
 });
 
 router.post('/signin', async (req, res) => {
