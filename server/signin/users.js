@@ -2,113 +2,113 @@ const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const secrets = require('../../config/secrets');
-const mongoose = require('mongoose');
-var keys = require('../../config/keys');
+const { apiSecret } = require('../../config/secrets');
+const { tokenKey } = require('../../config/secrets');
 
-keys = process.env.SECRETORKEY || keys.secretOrKey;
-//db connection
-var user='synerman';
-var password=process.env.PASSWORD || secrets.password;
-var mongourl=`mongodb://${user}:${password}@ds261626.mlab.com:61626/webeye-aditya`;
-console.log(mongourl);
-mongoose.connect(mongourl, {useNewUrlParser: true});
+const dbs = require('./../dbconnection');
 
-// Load input validation
-const validateLoginInput = require('./login_validation');
-const validateRegisterInput = require('./register_validation');
-
-// Load User model
-const User = require('../../models/User');
-
-// @route POST /register
-router.post('/register', (req, res) => {
-  // Form validation
-    
-  const { errors, isValid } = validateRegisterInput(req.body);
-
-  // Check validation
-  if (!isValid) {
-    return res.status(400).json(errors);
-  }
-
-  User.findOne({ email: req.body.email }).then(user => {
-    if (user) {
-      return res.status(400).json({ email: 'Email already exists' });
-    }
-
-    const newUser = new User({
-      name: req.body.name,
-      email: req.body.email,
-      password: req.body.password
-    });
-
-    // Hash password before saving in database
-    bcrypt.genSalt(10, (err, salt) => {
-      bcrypt.hash(newUser.password, salt, (err, hash) => {
-        if (err) throw err;
-        newUser.password = hash;
-        newUser
-          .save()
-          .then(user => res.json(user))
-          .catch(err => console.log(err));
+router.post('/newUser',async (req,res)=>{
+  const db = await dbs.get();
+  const webeye = await db.db('webeye');
+  const user = webeye.collection('user');
+  const email = (typeof req.body.email === 'undefined') ? null : req.body.email;
+  const name = (typeof req.body.name === 'undefined') ? null : req.body.name;
+  const password = (typeof req.body.password === 'undefined') ? null : req.body.password;
+  user.findOne({email})
+  .then(async (result)=>{
+    console.log(result);
+    if(result!=null){
+      res.json({
+        success: false,
+        'msg': 'User already exists',
       });
-    });
-  });
+    }
+    else{
+      const apiKey = await jwt.sign({email},apiSecret);
+      obj = {
+        name,
+        email,
+        apiKey,
+      };
+      Object.keys(obj).forEach(key => (obj[key] == null) && delete obj[key]);
+      let saltRounds = 10;
+      bcrypt
+      .hash(password, saltRounds)
+      .then((hash) => {
+        obj.password = hash;
+        user.insertOne(obj)
+          .then(() => {
+            res.json({
+              msg: 'New user created',
+              apiKey
+            });
+          })
+          .catch((er) => {
+            console.error(er);
+          });
+      })
+      .catch((error) => {
+        console.log(error);
+        res.json({
+          msg: 'Unable to create user',
+        });
+      })
+    }
+  })
+  .catch(err=>console.log(err))
 });
 
-// @route POST /login
-router.post('/login', (req, res) => {
-  // Form validation
-
-  const { errors, isValid } = validateLoginInput(req.body);
-
-  // Check validation
-  if (!isValid) {
-    return res.status(400).json(errors);
-  }
-
-  const email = req.body.email;
-  const password = req.body.password;
-
-  // Find user by email
-  User.findOne({ email }).then(user => {
-    // Check if user exists
-    if (!user) {
-      return res.status(404).json({ emailnotfound: 'Email not found' });
-    }
-
-    // Check password
-    bcrypt.compare(password, user.password).then(isMatch => {
-      if (isMatch) {
-        // User matched
-        // Create JWT Payload
-        const payload = {
-          id: user.id,
-          name: user.name
-        };
-
-        // Sign token
-        jwt.sign(
-          payload,
-          keys.secretOrKey,
-          {
-            expiresIn: 31556926 // 1 year in seconds
-          },
-          (err, token) => {
+router.post('/signin', async (req, res) => {
+  // Request body should contain:
+  // email: obvio   } String
+  // password: duh    }
+  const db = await dbs.get();
+  const webeye = await db.db('webeye');
+  const user = webeye.collection('user');
+  const { email } = req.body;
+  const { password } = req.body;
+  user.findOne({ email })
+    .then((result) => {
+      if (result) {
+        console.log(result);
+        const { name } = result.name;
+        const { email } = result.email;
+        bcrypt.compare(password, result.password, (e, bdata) => {
+          if (!e) {
+            if (bdata) {
+              // Sign with jwt and send token to user
+              jwt.sign({name, email}, tokenKey, { expiresIn: '1d' }, (er, token) => {
+                if (!er) {
+                  res.cookie('token', token);
+                  res.json({
+                    success: true,
+                    msg: 'Authenticated',
+                  });
+                } else {
+                  console.log(er);
+                }
+              });
+            } else {
+              res.json({
+                success: false,
+                msg: 'Authentication failed',
+              });
+            }
+          } else {
+            console.log(e);
             res.json({
-              success: true,
-              token: 'Bearer ' + token
+              msg: 'Password field empty',
             });
           }
-        );
+        });
       } else {
-        return res
-          .status(400)
-          .json({ passwordincorrect: 'Password incorrect' });
+        res.json({
+          msg: 'Email not found',
+        });
       }
-    });
-  });
+    })
+    .catch((err) => { console.log(err); res.sendStatus(500); });
 });
+
 
 module.exports = router;
