@@ -1,68 +1,122 @@
 const express = require('express');
 const router = express.Router();
-const mongoose = require('mongoose');
-const uuidv4 = require('uuid/v4');
-const secrets = require('../config/secrets');
-const mapping=require('../models/mapping');
-const SHA256 = require('crypto-js/sha256');
+const { tokenKey } = require('../config/secrets');
+const jwt = require('jsonwebtoken');
+const md5 = require('md5');
+const dbs = require('./dbconnection');
+const uuidv4 = require('uuid');
 
+function verifyToken(req, res, next){
+  const token = req.cookies.token;
+  if (token !== undefined) {
+    jwt.verify(token, tokenKey, (err) => {
+      if (err) {
+        res.sendStatus(403);
+      }
+      else{
+        req.token = token;
+        next();
+      }
+    });
+  }
+  else {
+    res.json({
+      msg: 'Sign to access resource',
+    });
+  }
+}
 
-var user='synerman';
-var password=process.env.PASSWORD || secrets.password;
-const mongourl=`mongodb://${user}:${password}@ds261626.mlab.com:61626/webeye-aditya`;
-mongoose.connect(mongourl, {useNewUrlParser: true});
-
-router.post('/createnew', function(req, res){
-  // Required parameters in request body
-  // URL to generate a shortened rl for : ogurl
-  mapping.findOne({'ogurl':req.body.ogurl}) 
-    .exec(function(err, result) {
-      if(!err && !result)
-      {
-      // Create token and minified url
-        var token = uuidv4();
-        var temp = String(SHA256(token));
-        temp=temp.slice(0,7);
-        var minurl = `https://syn3rman.herokuapp.com/urls/${temp}` || `http://localhost:7000/urls/${temp}`;
-        // Save to 'mapping' colllection
-        var map = new mapping({ 
-          _id : new mongoose.Types.ObjectId(),
-          ogurl : req.body.ogurl,
-          murl : minurl,
-          token : token,
-        });
-        map.save()
-          .then(function(result){
-            console.log(result + 'saved successfully');
-          })
-          .catch(function(err){
-            console.log(err);
-          });
-        // Response to user 
-        res.json({
-          msg:'Here\'s your minified url and access token to edit it later.',
-          murl: minurl,
-          token: token,
-        });
+async function verifyAPIKey(req,res,next){
+  var key = req.headers.authorization;
+  if(key!=null){
+    key = key.split(" ")[1]
+    console.log("Key: ",key);
+    const db = await dbs.get();
+    const webeye = await db.db('webeye');
+    const user = webeye.collection('user');
+    decodedData = jwt.decode(key);
+    console.log(decodedData);
+    req.email = decodedData.email;
+    const email = decodedData.email;
+    user.findOne({email})
+    .then((result)=>{
+      if(key===result.apiKey){
+        next();
       }
       else{
         res.json({
-          msg : 'A minified url already exists for this url',
+          'msg': 'Invalid API key',
+          'success': false, 
         });
       }
+    })
+    .catch(err=>console.log(err));
+  }
+  else{
+    res.json({
+      'success': false,
+      'msg': 'Api key not found',
     });
+  }
+}
+
+router.post('/newUrl',verifyToken, verifyAPIKey, async function(req, res){
+  // Required parameters in request body
+  // originalUrl
+  const db = await dbs.get();
+  const webeye = await db.db('webeye');
+  const mapping = webeye.collection('mapping');
+  mapping
+  .find({'originalUrl':req.body.originalUrl}).toArray((err,result)=>{
+    if(!err && result!=[]){
+      // Create the token and minified url
+      var temp = String(md5(uuidv4()));
+      temp=temp.slice(0,7);
+      // var minifiedUrl = `https://syn3rman.herokuapp.com/urls/${temp}` || `http://localhost:7000/urls/${temp}`;
+      var minifiedUrl = `http://localhost:7000/urls/${temp}`;
+      mapping.insertOne({
+        'originalUrl': req.body.originalUrl,
+        'minifiedUrl': minifiedUrl,
+        'ip': [],
+        'visits': 0,
+        'email': req.email,
+      })
+      .then(()=>{
+        res.json({
+          success: true,
+          minifiedUrl,
+        });
+      })
+      .catch((err)=>{console.log(err)})
+    }
+    else{
+      if(result==[]){
+        console.log(result);
+        res.json({
+          'msg': 'URL already exists'
+        });
+      }
+      else{
+        res.sendStatus(500);
+      }
+    }
+  }); 
 });
 
 // Mainly for debugging 
-router.post('/allobjs', function(req, res) {
-  mapping.find()
-    .exec(function(err, result) {
-      if(err) {
-        res.send('error occured');
-      } else {
-        res.json(result);
-      }
-    });
+router.post('/allobjs', async function(req, res) {
+  const db = await dbs.get();
+  const webeye = await db.db('webeye');
+  const mapping = webeye.collection('mapping');
+  mapping.find({})
+  .toArray((err,result)=>{
+    if(err){
+      console.log(err);
+    }
+    else{
+      res.json(result);
+    }
+  });
 });
   
 
@@ -70,75 +124,85 @@ router.post('/getStatus', function(req,res){
   res.send(req.body);
 });
 
-router.put('/updateurl', function(req,res){
-  // Required parameters in request body : 
-  // Proper access token : accessToken
-  // Shortened url to be updated : editUrl
-  // The url it is to be updated to : newUrl
-  const accessToken = req.body.accessToken;
-  var editUrl = req.body.murl;
+router.post('/updateUrl',verifyToken, verifyAPIKey,async function(req,res){
+  const db = await dbs.get();
+  const webeye = await db.db('webeye');
+  const mapping = webeye.collection('mapping');
+  var minifiedUrl = req.body.minifiedUrl;
   var newUrl = req.body.newUrl;
-  mapping
-    .findOne({'murl':editUrl})
-    .exec(function(err, result){
+  if(newUrl==null){
+    res.json({
+      'success': false,
+      'msg': 'Could not find new url',
+    })
+  }
+  else{
+    mapping
+    .findOne({minifiedUrl})
+    .then((result)=>{
+      // Could not find url
       if(result!=null){
-        if(result.token == accessToken){
+        console.log(result.email, req.email);
+        // Requester is the owner of the resource
+        if(result.email===req.email){
           mapping
-            .findOneAndUpdate({'murl':editUrl}, {ogurl:newUrl} ,function(err){
-              if(!err){
-                res.json({
-                  'msg': 'Successfully updated resource', 
-                });
-              }
-              else{
-                res.json({
-                  'msg':'Error',
-                });
-              }
-            });
+          .findOneAndUpdate({minifiedUrl}, {$set: {originalUrl: newUrl}} ,function(err){
+            if(!err){
+              res.json({
+                'msg': 'Successfully updated resource', 
+              });
+            }
+            else{
+              res.json({
+                'msg':'Error',
+              });
+            }
+          });
         }
         else{
-          console.log('Invalid access token');
           res.json({
-            'msg': 'Invalid access token',
+            'success': false,
+            'msg': 'Unable to modify resource.',
           });
         }
       }
       else{
         res.json({
-          'msg': 'Url does not exist in db',
+          'msg': 'Url does not exist.',
         });
       }
-    });
+    })
+    .catch(err=>console.log(err));
+  }
 });
 
-router.delete('/deleteurl', function(req,res){
-  const accessToken = req.body.accessToken;
-  const delUrl = req.body.murl;
-  mapping.findOne({'murl':delUrl}).exec(function(err,result){
-    var obj = result;
-    if(result!==null){
-      if(result.token == accessToken){
-        // Resource exists and user has permission to delete it.
-        mapping.remove(obj, function(err){
-          if(!err){
-            res.json({
-              'msg': 'Removed resource succcessfully',
-            });
-          }
-        });
-      }
-      else{
-        console.log('Not allowed to delete resource.');
-      }
+router.post('/deleteUrl', verifyToken, verifyAPIKey, async function(req,res){
+  const db = await dbs.get();
+  const webeye = await db.db('webeye');
+  const mapping = webeye.collection('mapping');
+  const minifiedUrl = req.body.minifiedUrl;
+  mapping.findOne({minifiedUrl})
+  .then((result)=>{
+    if(result.email===req.email){
+      mapping.deleteOne({minifiedUrl},(err)=>{
+        if(err)
+          console.log(err)
+        else{
+          db.close();
+          res.json({
+            'success': true,
+          });
+        }
+      });
     }
     else{
       res.json({
-        'msg': 'Url does not exist in db',
+        'success': false,
+        'msg': 'Unable to modify resource.',
       });
-      console.log('Url does not exist in db');
     }
-  });
+  })
+  .catch(err=>console.log(err));
 });
 
 module.exports=router;
