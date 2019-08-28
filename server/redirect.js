@@ -1,53 +1,40 @@
 const express = require('express');
 const router = express.Router();
 const secrets = require('../config/secrets');
-const mapping=require('../models/mapping');
 
 // db connection 
-const mongoose = require('mongoose');
+const dbs = require('./dbconnection');
 
-var user='synerman';
-var password=process.env.PASSWORD || secrets.password;
-const mongourl=`mongodb://${user}:${password}@ds261626.mlab.com:61626/webeye-aditya`;
-// console.log(mongourl);
-mongoose.connect(mongourl, {useNewUrlParser: true});
-
-
-router.get('/*+', function(req, res) {
+router.get('/*+', async function(req, res) {
+  const db = await dbs.get();
+  const webeye = await db.db('webeye');
+  const mapping = webeye.collection('mapping');
   var temp=req.originalUrl;
-  const url=`https://syn3rman.herokuapp.com${temp}` || `http://localhost:7000${temp}`;
-  console.log(url);
-  console.log();
-  mapping.find({'murl':url}).exec(function(err,result){
-    if(!err){
-      try{
-        const red=result[0].ogurl;
-        res.status(307).redirect(red);
-        // var ip = req.connection.remoteAddress;
-        mapping
-          .findOneAndUpdate({'murl':url},{$inc:{visits:1}})
-          .exec(function(err,result){
-            if(!err){
-              console.log(result);  
-            }
-            else{
-              res.json({'msg':'Could not find minified url.'});
-            }
-          });
-      }
-      catch(e){
-        res.json({
-          'msg':'URL does not exist',
-        });
-      }
+  console.log(temp);
+  // const url=`https://syn3rman.herokuapp.com${temp}` || `http://localhost:7000${temp}`;
+  const minifiedUrl = `http://localhost:7000${temp}`;
+  console.log(minifiedUrl);
+  mapping.findOne({minifiedUrl})
+  .then((result)=>{
+    console.log(result);
+    try{
+      const redirectUrl=result.originalUrl;
+      console.log(result);
+      console.log(redirectUrl);
+      res.status(307).redirect(redirectUrl);
+      var ip = (req.headers['x-forwarded-for'] || req.connection.remoteAddress || '').split(',')[0].trim();
+      console.log(ip);
+      mapping
+      .findOneAndUpdate({minifiedUrl},{$inc:{visits:1}})
+      .catch(err=>console.log(err));
     }
-    else{
+    catch(e){
       res.json({
-        'msg': err,
-        'str': 'Hey mate',
+        'msg':'URL does not exist',
       });
     }
-  });
+  })
+  .catch(err=>console.log(err));
 });
 
 module.exports=router;
