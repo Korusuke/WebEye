@@ -3,7 +3,7 @@ URL personalisation and shortener with tracking capabilities
 
 ## Setup
 - `npm install` in base directory and also in `./client`
-- Change the MongoDB URI in "./config/keys.js"
+- Change the password for mlabs db in "./secrets.js"
 - `npm run dev`
 
 ## File Structure
@@ -16,5 +16,5 @@ URL personalisation and shortener with tracking capabilities
 - `./client/src/App.js`: Routing for all React components 
 
 ### Express
-- `server.js`: Same as app.py in Flask
+- `app.js`: Same as app.py in Flask
 - `./server/`: Scripts for all routes should be placed here in their respective folders
