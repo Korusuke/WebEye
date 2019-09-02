@@ -60,7 +60,7 @@ typings/
 # next.js build output
 .next
 
-# api keys and shit
+# api keys  
 config/secrets.js
 
 #vscode  config
