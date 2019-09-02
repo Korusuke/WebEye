@@ -30,27 +30,33 @@ async function verifyAPIKey(req,res,next){
   var key = req.headers.authorization;
   if(key!=null){
     key = key.split(' ')[1];
-    console.log('Key: ',key);
     const db = await dbs.get();
     const webeye = await db.db('webeye');
     const user = webeye.collection('user');
     var decodedData = jwt.decode(key);
-    console.log(decodedData);
-    req.email = decodedData.email;
-    const email = decodedData.email;
-    user.findOne({email})
-      .then((result)=>{
-        if(key===result.apiKey){
-          next();
-        }
-        else{
-          res.json({
-            'msg': 'Invalid API key',
-            'success': false, 
-          });
-        }
-      })
-      .catch(err=>console.log(err));
+    if(decodedData!==null){
+      req.email = decodedData.email;
+      const email = decodedData.email;
+      user.findOne({email})
+        .then((result)=>{
+          if(key===result.apiKey){
+            next();
+          }
+          else{
+            res.json({
+              'msg': 'Invalid API key',
+              'success': false, 
+            });
+          }
+        })
+        .catch(err=>console.log(err));
+    }
+    else{
+      res.json({
+        success: false,
+        'msg': 'Invalid api key',
+      });
+    }
   }
   else{
     res.json({
@@ -120,8 +126,39 @@ router.post('/allobjs', async function(req, res) {
 });
   
 
-router.post('/getStatus', function(req,res){
-  res.send(req.body);
+router.post('/getStats', verifyToken, verifyAPIKey, async function(req,res){
+  const db = await dbs.get();
+  const webeye = await db.db('webeye');
+  const mapping = webeye.collection('mapping');
+  var minifiedUrl = req.body.minifiedUrl;
+  mapping
+    .findOne({minifiedUrl})
+    .then((result)=>{
+      // Could not find url
+      if(result!=null){
+        // console.log(result, req.email);
+        // Requester is the owner of the resource
+        if(result.email===req.email){
+          res.json({
+            success: true,
+            'msg':'Success',
+            visits: result.visits,
+          }); 
+        }
+        else{
+          res.json({
+            'success': false,
+            'msg': 'Unable to access resource.',
+          });
+        }
+      }
+      else{
+        res.json({
+          'msg': 'Url does not exist.',
+        });
+      }
+    })
+    .catch(err=>console.log(err));
 });
 
 router.post('/updateUrl',verifyToken, verifyAPIKey,async function(req,res){
