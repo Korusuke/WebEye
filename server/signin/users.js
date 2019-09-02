@@ -58,7 +58,7 @@ router.post('/newUser',async (req,res)=>{
     .catch(err=>console.log(err));
 });
 
-router.post('/signin', async (req, res) => {
+router.post('/login', async (req, res) => {
   // Request body should contain:
   // email: obvio   } String
   // password: duh    }
@@ -67,6 +67,7 @@ router.post('/signin', async (req, res) => {
   const user = webeye.collection('user');
   const { email } = req.body;
   const { password } = req.body;
+  console.log(email, password, req.body);
   user.findOne({ email })
     .then((result) => {
       if (result) {
